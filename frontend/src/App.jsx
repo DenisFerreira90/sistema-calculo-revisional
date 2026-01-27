@@ -58,7 +58,7 @@ function App() {
   
   // Estados de Interface
   const [mostrarPortfolio, setMostrarPortfolio] = useState(false)
-  const [mostrarDica, setMostrarDica] = useState(false) // Estado para abrir a ajuda
+  const [mostrarDica, setMostrarDica] = useState(false)
 
   // --- LÓGICA DO DROPDOWN PERSONALIZADO ---
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
@@ -142,9 +142,8 @@ function App() {
         numero_contrato: formulario.numero_contrato || 'Não informado'
       }
       
-      // ⚠️ IMPORTANTE: Use o link do Render para produção ou Localhost para testes
-      // const linkAPI = 'https://api-revisional-xxxx.onrender.com/calcular-revisional'
-      const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional' 
+      // ✅ Link da API em Produção (Render)
+      const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional'
 
       const response = await axios.post(linkAPI, payload)
       setResultado(response.data)
@@ -155,6 +154,11 @@ function App() {
     } finally {
       setCarregando(false)
     }
+  }
+
+  // Função auxiliar para formatar dinheiro corretamente (TRAVADO EM 2 CASAS)
+  const formatarMoeda = (valor) => {
+    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   return (
@@ -169,7 +173,6 @@ function App() {
 
         <form onSubmit={fazerCalculo} className="card">
           
-          {/* BOTÃO DE AJUDA */}
           <div style={{textAlign: 'right', marginBottom: '10px'}}>
             <button 
               type="button"
@@ -183,7 +186,6 @@ function App() {
             </button>
           </div>
 
-          {/* CAIXA DE DICA (Abre ao clicar na ajuda) */}
           {mostrarDica && (
             <div style={{
               background: 'rgba(41, 151, 255, 0.1)', border: '1px solid #2997FF', 
@@ -193,14 +195,13 @@ function App() {
               <ul style={{marginTop: '5px', paddingLeft: '20px', lineHeight: '1.5'}}>
                 <li>Use <strong>vírgula</strong> ou <strong>ponto</strong> para centavos (Ex: 4076,46).</li>
                 <li><strong>Não use ponto</strong> para separar milhares.
-                  <br/>✅ Correto: <code>4076,46</code> ou <code>4076.46</code>
+                  <br/>✅ Correto: <code>4076,46</code>
                   <br/>❌ Errado: <code>4.076,46</code>
                 </li>
               </ul>
             </div>
           )}
 
-          {/* DROPDOWN */}
           <div className="form-group" ref={dropdownRef} style={{position: 'relative'}}>
             <label>Tipo de Contrato</label>
             <input 
@@ -234,7 +235,6 @@ function App() {
             <input type="text" name="numero_contrato" onChange={handleChange} placeholder="Opcional" />
           </div>
 
-          {/* VALOR LIBERADO (COM STEP 0.01) */}
           <div className="form-group">
             <label>Valor Liberado (Líquido)</label>
             <div className="input-wrapper">
@@ -251,7 +251,6 @@ function App() {
           </div>
 
           <div className="row">
-            {/* VALOR DA PARCELA (COM STEP 0.01) */}
             <div className="form-group">
               <label>Valor da Parcela</label>
               <div className="input-wrapper">
@@ -314,45 +313,59 @@ function App() {
                 </tr>
                 <tr>
                   <td>Valor Financiado (Líquido):</td>
-                  <td><strong>R$ {parseFloat(formulario.valor_liberado).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></td>
+                  <td><strong>R$ {formatarMoeda(parseFloat(formulario.valor_liberado))}</strong></td>
                 </tr>
                 <tr>
-                  <td>Taxa Mensal Praticada:</td>
-                  <td className="text-danger"><strong>{resultado.banco.taxa_mensal}% a.m.</strong></td>
+                  <td>Prestação Mensal (Atual):</td>
+                  <td>R$ {formatarMoeda(resultado.banco.parcela)}</td>
                 </tr>
                 <tr>
                   <td>Taxa Anual (Efetiva):</td>
                   <td>{resultado.banco.taxa_anual}% a.a.</td>
-                </tr>
-                <tr>
-                  <td>Prestação Atual:</td>
-                  <td>R$ {resultado.banco.parcela.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                 </tr>
               </tbody>
             </table>
           </section>
 
           <section className="doc-section">
-            <h3>2.0 Recálculo (Método Gauss)</h3>
-            <p>Utilizando a taxa média de mercado do Banco Central ({resultado.justo.taxa_mensal}%) e expurgando a capitalização composta (anatocismo) através do Método de Gauss, obtemos:</p>
+            <h3>2.0 Análise Comparativa e Recálculo</h3>
+            <p>Realizou-se o confronto entre a taxa de juros aplicada no contrato e a Taxa Média de Mercado divulgada pelo Banco Central do Brasil (Série {resultado.justo.codigo_serie}) para a mesma modalidade e época:</p>
+            
+            {/* --- BOX DE COMPARAÇÃO DE TAXAS --- */}
+            <div className="gauss-highlight" style={{marginBottom: '20px', borderColor: '#ccc', background: '#fff'}}>
+              <div className="gauss-item">
+                <span style={{color: '#d32f2f', fontWeight: 'bold'}}>Taxa Cobrada (Banco)</span>
+                <strong style={{color: '#d32f2f', fontSize: '1.4rem'}}>
+                  {resultado.banco.taxa_mensal}% a.m.
+                </strong>
+              </div>
+              <div className="gauss-item" style={{borderLeft: '1px solid #eee'}}>
+                <span style={{color: '#2e7d32', fontWeight: 'bold'}}>Taxa Média (Bacen)</span>
+                <strong style={{color: '#2e7d32', fontSize: '1.4rem'}}>
+                  {resultado.justo.taxa_mensal}% a.m.
+                </strong>
+              </div>
+            </div>
+
+            <p>Com base na taxa justa de mercado e expurgando a capitalização composta (anatocismo) através do Método de Gauss, recalculou-se o valor da prestação:</p>
             
             <div className="gauss-highlight">
               <div className="gauss-item">
                 <span>Parcela Recalculada (Justa)</span>
-                <strong className="text-success">R$ {resultado.justo.parcela.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>
+                <strong className="text-success">R$ {formatarMoeda(resultado.justo.parcela)}</strong>
               </div>
               <div className="gauss-item">
                 <span>Redução Mensal</span>
-                <strong>R$ {resultado.resultado.reducao_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>
+                <strong>R$ {formatarMoeda(resultado.resultado.reducao_mensal)}</strong>
               </div>
             </div>
           </section>
 
           <section className="doc-section bg-light">
             <h3>3.0 Conclusão Financeira</h3>
-            <p>Com base na série histórica do Bacen adequada para <strong>{resultado.cabecalho.tipo_contrato}</strong>, identificou-se onerosidade excessiva. O valor estimado a ser restituído (Repetição de Indébito) é:</p>
+            <p>Com base na disparidade das taxas apresentadas acima, identificou-se onerosidade excessiva. O valor estimado a ser restituído (Repetição de Indébito) é:</p>
             <div className="final-value">
-              R$ {resultado.resultado.valor_recuperar.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+              R$ {formatarMoeda(resultado.resultado.valor_recuperar)}
             </div>
           </section>
 
@@ -374,7 +387,7 @@ function App() {
 
           <div className="doc-footer no-print">
             <button className="btn-print" onClick={() => window.print()}>🖨️ Imprimir PDF</button>
-            <button className="btn-whatsapp" onClick={() => window.open(`https://wa.me/?text=Resultado Revisional: R$ ${resultado.resultado.valor_recuperar}`, '_blank')}>📱 Compartilhar</button>
+            <button className="btn-whatsapp" onClick={() => window.open(`https://wa.me/?text=Resultado Revisional: R$ ${formatarMoeda(resultado.resultado.valor_recuperar)}`, '_blank')}>📱 Compartilhar</button>
           </div>
           
           <div className="watermark print-only">
