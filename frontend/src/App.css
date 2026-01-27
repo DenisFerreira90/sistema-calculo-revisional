@@ -1,0 +1,418 @@
+/* =========================================
+   1. VARIÁVEIS E RESET GLOBAL (PREMIUM)
+   ========================================= */
+:root {
+  /* Fontes Modernas */
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", monospace;
+
+  /* Cores Dark Mode (Tela de Entrada) */
+  --bg-app: #050505;          /* Preto quase absoluto */
+  --card-bg: rgba(28, 28, 30, 0.75); /* Efeito Vidro Escuro */
+  --input-bg: rgba(44, 44, 46, 0.8);
+  --border-color: rgba(84, 84, 88, 0.4);
+  
+  /* Textos */
+  --text-primary: #F5F5F7;
+  --text-secondary: #86868B;
+  
+  /* Cores de Ação (Branding) */
+  --primary: #2997FF;         /* Azul Apple Brilhante */
+  --primary-hover: #007AFF;
+  --success: #30D158;
+  --danger: #FF453A;
+  --whatsapp: #25D366;
+
+  /* Cores do Documento (Papel A4) */
+  --paper-white: #ffffff;
+  --paper-text: #111111;
+  --paper-border: #e0e0e0;
+
+  /* Efeitos */
+  --shadow-card: 0 20px 40px rgba(0,0,0,0.6);
+  --shadow-paper: 0 4px 30px rgba(0,0,0,0.2);
+  --blur: blur(20px);
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+#root, .app-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.app-container {
+  max-width: 900px;
+  padding: 40px 20px;
+  gap: 40px;
+}
+
+/* =========================================
+   2. FORMULÁRIO (ESTILO GLASSMORPHISM)
+   ========================================= */
+.input-section {
+  width: 100%;
+  max-width: 500px;
+  position: relative;
+  z-index: 10;
+}
+
+.app-header { text-align: center; margin-bottom: 30px; }
+.app-header h1 { 
+  font-size: 2rem; font-weight: 700; 
+  background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px; 
+}
+.app-header p { color: var(--text-secondary); font-size: 1rem; }
+
+/* O Cartão de Vidro */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 30px;
+  box-shadow: var(--shadow-card);
+}
+
+/* Inputs Modernos */
+.form-group { margin-bottom: 20px; position: relative; }
+.form-group label {
+  display: block; font-size: 0.75rem; font-weight: 600; 
+  color: #aaa; margin-bottom: 8px; 
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.input-wrapper { position: relative; }
+.currency-symbol {
+  position: absolute; left: 15px; top: 50%; 
+  transform: translateY(-50%); color: #888; pointer-events: none;
+}
+
+input, select, .input-field {
+  width: 100%; padding: 14px 15px; 
+  border: 1px solid transparent; 
+  border-radius: 12px;
+  background: var(--input-bg); 
+  color: white; 
+  font-size: 1rem; 
+  transition: all 0.2s ease;
+}
+
+input[name="valor_liberado"], input[name="valor_parcela"] { padding-left: 40px; }
+
+input:focus, .input-field:focus { 
+  outline: none; 
+  border-color: var(--primary); 
+  background: rgba(60, 60, 65, 0.9);
+  box-shadow: 0 0 0 4px rgba(41, 151, 255, 0.15);
+}
+
+input[type="date"] { color-scheme: dark; }
+
+.row { display: flex; gap: 15px; }
+.row .form-group { flex: 1; }
+
+/* Botão Principal */
+.btn-primary {
+  width: 100%; padding: 16px; 
+  background: var(--primary); 
+  color: white; border: none; 
+  border-radius: 12px; 
+  font-size: 1.05rem; font-weight: 600; 
+  cursor: pointer; margin-top: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(41, 151, 255, 0.3);
+}
+.btn-primary:hover { 
+  background: var(--primary-hover); 
+  transform: translateY(-2px); 
+}
+.btn-primary:disabled { opacity: 0.6; cursor: wait; transform: none; }
+.error-message { color: var(--danger); text-align: center; margin-top: 15px; font-size: 0.9rem; }
+
+/* =========================================
+   3. DROPDOWN PERSONALIZADO (CORREÇÃO DE ROLAGEM)
+   ========================================= */
+.custom-dropdown-list {
+  position: absolute;
+  top: 105%; /* Logo abaixo do input */
+  left: 0;
+  width: 100%;
+  max-height: 280px; /* Altura máxima antes de rolar */
+  overflow-y: auto;  /* Scroll vertical */
+  background: #2C2C2E; /* Cor escura sólida */
+  border: 1px solid #555;
+  border-radius: 12px;
+  list-style: none;
+  padding: 5px;
+  z-index: 1000; /* Fica acima de tudo */
+  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  color: #eee;
+  border-radius: 8px;
+  transition: background 0.2s;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.dropdown-item:last-child { border-bottom: none; }
+
+.dropdown-item:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.dropdown-item.disabled { color: #777; cursor: default; }
+.dropdown-item.disabled:hover { background: none; }
+
+/* Estilo da Barra de Rolagem do Dropdown */
+.custom-dropdown-list::-webkit-scrollbar { width: 8px; }
+.custom-dropdown-list::-webkit-scrollbar-track { background: #1c1c1e; border-radius: 0 12px 12px 0; }
+.custom-dropdown-list::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+.custom-dropdown-list::-webkit-scrollbar-thumb:hover { background: #777; }
+
+
+/* =========================================
+   4. LAUDO (ESTILO PAPEL A4)
+   ========================================= */
+.document-paper {
+  background: var(--paper-white);
+  color: var(--paper-text);
+  width: 100%;
+  max-width: 210mm;
+  padding: 50px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-paper);
+  position: relative;
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Aviso Legal (Disclaimer) */
+.legal-disclaimer-box {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  padding: 12px;
+  font-size: 0.7rem;
+  color: #666;
+  text-align: justify;
+  margin-bottom: 30px;
+  border-radius: 6px;
+  line-height: 1.3;
+}
+.legal-disclaimer-box strong { color: #d00; }
+
+/* Cabeçalho Doc */
+.doc-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+.doc-header h2 { font-size: 1.5rem; color: #000; margin: 0; text-transform: uppercase; }
+.doc-meta { display: block; font-size: 0.9rem; color: #444; margin-top: 8px; }
+
+/* Seções */
+.doc-section { margin-bottom: 30px; }
+.doc-section h3 {
+  font-size: 1.1rem; text-transform: uppercase; color: #111;
+  border-left: 5px solid #004488; padding-left: 10px; margin-bottom: 15px;
+  font-weight: 700;
+}
+.doc-section p { font-size: 0.95rem; line-height: 1.5; text-align: justify; color: #333; margin-bottom: 10px; }
+
+/* Tabelas */
+.doc-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #eee; }
+.doc-table td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 0.95rem; color: #333; }
+.doc-table tr:nth-child(even) { background-color: #fafafa; }
+.doc-table td:last-child { text-align: right; font-family: var(--font-mono); }
+.text-danger { color: #c00; font-weight: bold; }
+.text-success { color: #008000; font-weight: bold; }
+
+/* Destaque Gauss */
+.gauss-highlight {
+  display: flex; justify-content: space-between; gap: 20px;
+  background: #f4f8fb; border: 1px solid #dbe7f1;
+  padding: 20px; border-radius: 8px; margin-top: 15px;
+}
+.gauss-item { text-align: center; flex: 1; }
+.gauss-item span { display: block; font-size: 0.8rem; color: #666; margin-bottom: 5px; text-transform: uppercase; }
+.gauss-item strong { display: block; font-size: 1.3rem; color: #004488; }
+
+/* Conclusão */
+.bg-light { background: #fffcf0; padding: 20px; border: 1px dashed #e6cfa5; border-radius: 8px; }
+.final-value { font-size: 2.2rem; font-weight: 800; text-align: center; color: #004488; margin: 15px 0; }
+
+/* Fonte Bacen */
+.source-box {
+  background: #f0f7ff; border-left: 4px solid #0066cc;
+  padding: 12px; font-size: 0.85rem; margin-top: 10px;
+}
+.source-box a { color: #0066cc; font-weight: bold; text-decoration: underline; }
+
+/* Botões Rodapé (Tela) */
+.doc-footer { display: flex; justify-content: center; gap: 15px; margin-top: 40px; }
+.btn-print, .btn-whatsapp { 
+  padding: 12px 25px; border: none; border-radius: 50px; 
+  cursor: pointer; font-weight: 600; transition: transform 0.2s;
+}
+.btn-print { background: #333; color: white; }
+.btn-whatsapp { background: var(--whatsapp); color: white; }
+.btn-print:hover, .btn-whatsapp:hover { transform: translateY(-2px); opacity: 0.9; }
+
+/* Marca D'água (Impressão) */
+.watermark { 
+  margin-top: 50px; text-align: center; font-size: 0.7rem; color: #ccc; 
+  border-top: 1px solid #eee; padding-top: 10px;
+}
+
+
+/* =========================================
+   5. RODAPÉ DESENVOLVEDOR & PORTFÓLIO
+   ========================================= */
+.dev-footer {
+  margin-top: 40px; padding: 20px;
+  text-align: center; width: 100%;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.dev-footer p { color: var(--text-secondary); font-size: 0.9rem; }
+
+/* Link Botão do Nome */
+.dev-link-btn {
+  background: none; border: none; padding: 0;
+  color: var(--primary); font-weight: 600; cursor: pointer;
+  font-size: inherit; font-family: inherit;
+  text-decoration: underline; transition: color 0.3s;
+}
+.dev-link-btn:hover { color: #fff; text-shadow: 0 0 10px var(--primary); }
+
+/* --- MODAL (Janela do Portfólio) --- */
+.portfolio-modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 9999; animation: fadeIn 0.3s;
+}
+
+.portfolio-card {
+  background: #1c1c1e; border: 1px solid #333;
+  width: 90%; max-width: 650px;
+  border-radius: 20px; padding: 30px;
+  position: relative;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+  max-height: 90vh; overflow-y: auto;
+}
+
+.close-btn {
+  position: absolute; top: 15px; right: 15px;
+  background: rgba(255,255,255,0.1); border: none;
+  color: white; width: 32px; height: 32px; border-radius: 50%;
+  cursor: pointer; font-size: 1.2rem;
+}
+
+.portfolio-header { text-align: center; margin-bottom: 25px; }
+.avatar-circle {
+  width: 70px; height: 70px; 
+  background: linear-gradient(135deg, var(--primary), #88cfff);
+  color: white; font-weight: bold; font-size: 1.5rem;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 15px; box-shadow: 0 0 20px rgba(41, 151, 255, 0.4);
+}
+.tech-badges { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.tech-badges span {
+  background: rgba(255,255,255,0.1); color: #ccc;
+  padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
+}
+
+/* Grid de Projetos */
+.projects-grid {
+  display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px;
+}
+@media(min-width: 500px) { .projects-grid { grid-template-columns: 1fr 1fr; } }
+
+.project-item {
+  background: rgba(255,255,255,0.03);
+  padding: 15px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: 0.2s;
+  display: flex; flex-direction: column;
+}
+.project-item:hover { background: rgba(255,255,255,0.07); transform: translateY(-3px); }
+.project-item h4 { color: white; margin: 0 0 5px; font-size: 1rem; }
+.project-item p { color: #888; font-size: 0.8rem; line-height: 1.4; margin-bottom: 10px; flex-grow: 1; }
+
+.project-link {
+  display: block; margin-top: auto; font-size: 0.8rem;
+  color: var(--primary); text-decoration: none; font-weight: bold;
+}
+.project-link:hover { text-decoration: underline; color: #fff; }
+
+.portfolio-footer .btn-whatsapp { width: 100%; border-radius: 12px; }
+
+/* =========================================
+   6. MODO IMPRESSÃO (LIMPEZA TOTAL)
+   ========================================= */
+@media print {
+  body { background: white; color: black; display: block; }
+  .app-container { padding: 0; margin: 0; max-width: 100%; display: block; }
+  
+  /* Esconde interface web */
+  .no-print, .doc-footer, .dev-footer { display: none !important; }
+
+  /* Ajusta documento para impressão */
+  .document-paper {
+    box-shadow: none; width: 100%; max-width: 100%;
+    margin: 0; padding: 0; border: none;
+    animation: none;
+  }
+
+  /* Força cores pretas para texto */
+  h1, h2, h3, strong, .final-value, .gauss-item strong { color: black !important; }
+  .text-danger, .text-success { color: black !important; font-weight: bold; }
+  
+  /* Remove fundos coloridos para economizar tinta */
+  .gauss-highlight, .bg-light, .source-box, .legal-disclaimer-box {
+    background: none !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Ajusta links */
+  a { text-decoration: none; color: black !important; }
+  
+  /* Garante que o disclaimer apareça */
+  .legal-disclaimer-box, .print-only { display: block !important; }
+  
+  .doc-section { page-break-inside: avoid; }
+}
+
+/* Responsivo Mobile */
+@media (max-width: 600px) {
+  .app-container { padding: 15px; }
+  .card { padding: 20px; }
+  .document-paper { padding: 20px; }
+  .final-value { font-size: 1.8rem; }
+  .gauss-highlight { flex-direction: column; }
+  .app-header h1 { font-size: 1.6rem; }
+  .custom-dropdown-list { max-height: 200px; }
+}
