@@ -90,7 +90,6 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [dropdownRef])
 
-
   // --- SEUS PROJETOS ---
   const meusProjetos = [
     {
@@ -142,7 +141,7 @@ function App() {
         numero_contrato: formulario.numero_contrato || 'Não informado'
       }
       
-      // ✅ Link da API em Produção (Render)
+      // ✅ LINK DA API (Certifique-se que este é o link correto do seu Render)
       const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional'
 
       const response = await axios.post(linkAPI, payload)
@@ -156,9 +155,12 @@ function App() {
     }
   }
 
-  // Função auxiliar para formatar dinheiro corretamente (TRAVADO EM 2 CASAS)
+  // 🔥 FUNÇÃO CORRIGIDA PARA GARANTIR 2 CASAS DECIMAIS 🔥
   const formatarMoeda = (valor) => {
-    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (!valor && valor !== 0) return "0,00";
+    const numero = Number(valor); // Garante que é número
+    // Força exatamente 2 casas, nem mais, nem menos
+    return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   return (
