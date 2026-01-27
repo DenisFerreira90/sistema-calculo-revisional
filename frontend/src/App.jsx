@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
-// --- LISTA COMPLETA DE CONTRATOS (PARA O DROPDOWN) ---
+// --- LISTA COMPLETA DE CONTRATOS (DROPDOWN INTELIGENTE) ---
 const OPCOES_CONTRATOS = [
   "Financiamento de Veículo (CDC)",
   "Leasing (Arrendamento Mercantil)",
@@ -76,7 +76,7 @@ function App() {
     setMostrarSugestoes(true)
   }
 
-  // Seleciona item da lista
+  // Seleciona item da lista e fecha
   const selecionarTipo = (valor) => {
     setFormulario({ ...formulario, tipo_contrato: valor })
     setMostrarSugestoes(false)
@@ -94,8 +94,8 @@ function App() {
   }, [dropdownRef])
 
 
-  // --- SEUS PROJETOS (LINKS DO GITHUB) ---
-const meusProjetos = [
+  // --- SEUS PROJETOS (ATUALIZADO COM PDV APPETITE DETALHADO) ---
+  const meusProjetos = [
     {
       titulo: "PDV Appetite (PWA) - App & Web",
       desc: "Sistema de gestão Real-time (Cozinha/Caixa). Login seguro, Sincronização instantânea com Firestore, Leitor de QR Code e funciona Offline (PWA).",
@@ -151,7 +151,7 @@ const meusProjetos = [
       setTimeout(() => document.getElementById('laudo-final').scrollIntoView({ behavior: 'smooth' }), 200)
     
     } catch (error) {
-      setErro('Erro de conexão. Verifique se o servidor Python está rodando.')
+      setErro('Erro de conexão. Verifique se o backend Python está rodando (uvicorn main:app).')
     } finally {
       setCarregando(false)
     }
@@ -184,7 +184,7 @@ const meusProjetos = [
               required
             />
             
-            {/* Lista Flutuante (Não fecha ao rolar) */}
+            {/* Lista Flutuante */}
             {mostrarSugestoes && (
               <ul className="custom-dropdown-list">
                 {sugestoesFiltradas.length > 0 ? (
@@ -247,9 +247,9 @@ const meusProjetos = [
       {resultado && (
         <div id="laudo-final" className="document-paper animate-fade-in">
           
-          {/* Aviso Legal (Disclaimer do PDF) */}
+          {/* Aviso Legal */}
           <div className="legal-disclaimer-box">
-            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo site, conforme as informações preenchidas pelo próprio usuário. 
+            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema, conforme as informações preenchidas pelo próprio usuário. 
             Não assumimos qualquer responsabilidade pelo documento no que diz respeito à sua integralidade, correção e atualização. 
             O usuário assume toda e qualquer responsabilidade, de caráter civil e/ou criminal, pela utilização indevida das informações abaixo.
             O presente documento serve como parecer técnico preliminar.
@@ -361,6 +361,7 @@ const meusProjetos = [
           >
             Denis da Rosa Ferreira
           </button> 
+          {' '}• Soluções em Tecnologia
         </p>
       </footer>
 
