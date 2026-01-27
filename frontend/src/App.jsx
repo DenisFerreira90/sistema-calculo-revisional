@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
-// --- LISTA COMPLETA DE CONTRATOS (DROPDOWN INTELIGENTE) ---
+// --- LISTA COMPLETA DE CONTRATOS ---
 const OPCOES_CONTRATOS = [
   "Financiamento de Veículo (CDC)",
   "Leasing (Arrendamento Mercantil)",
@@ -56,19 +56,18 @@ function App() {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
   
-  // Estado para abrir/fechar o Modal de Portfólio
+  // Estados de Interface
   const [mostrarPortfolio, setMostrarPortfolio] = useState(false)
+  const [mostrarDica, setMostrarDica] = useState(false) // Estado para abrir a ajuda
 
   // --- LÓGICA DO DROPDOWN PERSONALIZADO ---
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
   const [sugestoesFiltradas, setSugestoesFiltradas] = useState(OPCOES_CONTRATOS)
   const dropdownRef = useRef(null)
 
-  // Filtra a lista conforme digita
   const handleTipoChange = (e) => {
     const texto = e.target.value
     setFormulario({ ...formulario, tipo_contrato: texto })
-    
     const filtrados = OPCOES_CONTRATOS.filter(opcao => 
       opcao.toLowerCase().includes(texto.toLowerCase())
     )
@@ -76,13 +75,11 @@ function App() {
     setMostrarSugestoes(true)
   }
 
-  // Seleciona item da lista e fecha
   const selecionarTipo = (valor) => {
     setFormulario({ ...formulario, tipo_contrato: valor })
     setMostrarSugestoes(false)
   }
 
-  // Fecha dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -94,7 +91,7 @@ function App() {
   }, [dropdownRef])
 
 
-  // --- SEUS PROJETOS (ATUALIZADO COM PDV APPETITE DETALHADO) ---
+  // --- SEUS PROJETOS ---
   const meusProjetos = [
     {
       titulo: "PDV Appetite (PWA) - App & Web",
@@ -126,7 +123,6 @@ function App() {
     }
   ]
 
-  // --- LÓGICA DO FORMULÁRIO ---
   const handleChange = (e) => {
     setFormulario({ ...formulario, [e.target.name]: e.target.value })
   }
@@ -146,12 +142,16 @@ function App() {
         numero_contrato: formulario.numero_contrato || 'Não informado'
       }
       
-      const response = await axios.post('http://127.0.0.1:8000/calcular-revisional', payload)
+      // ⚠️ IMPORTANTE: Use o link do Render para produção ou Localhost para testes
+      // const linkAPI = 'https://api-revisional-xxxx.onrender.com/calcular-revisional'
+      const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional' 
+
+      const response = await axios.post(linkAPI, payload)
       setResultado(response.data)
       setTimeout(() => document.getElementById('laudo-final').scrollIntoView({ behavior: 'smooth' }), 200)
     
     } catch (error) {
-      setErro('Erro de conexão. Verifique se o backend Python está rodando (uvicorn main:app).')
+      setErro('Erro de conexão. Verifique se o backend Python está rodando.')
     } finally {
       setCarregando(false)
     }
@@ -160,7 +160,7 @@ function App() {
   return (
     <div className="app-container">
       
-      {/* --- SEÇÃO 1: FORMULÁRIO DE CÁLCULO (Não sai na impressão) --- */}
+      {/* --- SEÇÃO 1: FORMULÁRIO --- */}
       <div className="input-section no-print">
         <header className="app-header">
           <h1>Cálculo Revisional Pro</h1>
@@ -169,31 +169,56 @@ function App() {
 
         <form onSubmit={fazerCalculo} className="card">
           
-          {/* --- DROPDOWN PERSONALIZADO --- */}
+          {/* BOTÃO DE AJUDA */}
+          <div style={{textAlign: 'right', marginBottom: '10px'}}>
+            <button 
+              type="button"
+              onClick={() => setMostrarDica(!mostrarDica)}
+              style={{
+                background: 'transparent', border: 'none', color: '#2997FF', 
+                cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold'
+              }}
+            >
+              ❓ Dúvidas no preenchimento?
+            </button>
+          </div>
+
+          {/* CAIXA DE DICA (Abre ao clicar na ajuda) */}
+          {mostrarDica && (
+            <div style={{
+              background: 'rgba(41, 151, 255, 0.1)', border: '1px solid #2997FF', 
+              borderRadius: '8px', padding: '15px', marginBottom: '20px', fontSize: '0.85rem', color: '#fff'
+            }}>
+              <strong>Como preencher os valores?</strong>
+              <ul style={{marginTop: '5px', paddingLeft: '20px', lineHeight: '1.5'}}>
+                <li>Use <strong>vírgula</strong> ou <strong>ponto</strong> para centavos (Ex: 4076,46).</li>
+                <li><strong>Não use ponto</strong> para separar milhares.
+                  <br/>✅ Correto: <code>4076,46</code> ou <code>4076.46</code>
+                  <br/>❌ Errado: <code>4.076,46</code>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* DROPDOWN */}
           <div className="form-group" ref={dropdownRef} style={{position: 'relative'}}>
-            <label>Tipo de Contrato (Selecione ou Digite)</label>
+            <label>Tipo de Contrato</label>
             <input 
               type="text"
               name="tipo_contrato" 
               value={formulario.tipo_contrato} 
               onChange={handleTipoChange}
               onFocus={() => setMostrarSugestoes(true)}
-              placeholder="Digite para buscar ou role a lista..." 
+              placeholder="Digite para buscar..." 
               className="input-field"
               autoComplete="off"
               required
             />
-            
-            {/* Lista Flutuante */}
             {mostrarSugestoes && (
               <ul className="custom-dropdown-list">
                 {sugestoesFiltradas.length > 0 ? (
                   sugestoesFiltradas.map((opcao, index) => (
-                    <li 
-                      key={index} 
-                      onClick={() => selecionarTipo(opcao)}
-                      className="dropdown-item"
-                    >
+                    <li key={index} onClick={() => selecionarTipo(opcao)} className="dropdown-item">
                       {opcao}
                     </li>
                   ))
@@ -209,20 +234,36 @@ function App() {
             <input type="text" name="numero_contrato" onChange={handleChange} placeholder="Opcional" />
           </div>
 
+          {/* VALOR LIBERADO (COM STEP 0.01) */}
           <div className="form-group">
             <label>Valor Liberado (Líquido)</label>
             <div className="input-wrapper">
                <span className="currency-symbol">R$</span>
-               <input type="number" name="valor_liberado" onChange={handleChange} placeholder="0,00" required />
+               <input 
+                 type="number" 
+                 step="0.01" 
+                 name="valor_liberado" 
+                 onChange={handleChange} 
+                 placeholder="Ex: 4076,46" 
+                 required 
+               />
             </div>
           </div>
 
           <div className="row">
+            {/* VALOR DA PARCELA (COM STEP 0.01) */}
             <div className="form-group">
               <label>Valor da Parcela</label>
               <div className="input-wrapper">
                 <span className="currency-symbol">R$</span>
-                <input type="number" step="0.01" name="valor_parcela" onChange={handleChange} placeholder="0,00" required />
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  name="valor_parcela" 
+                  onChange={handleChange} 
+                  placeholder="Ex: 533,76" 
+                  required 
+                />
               </div>
             </div>
             <div className="form-group">
@@ -243,11 +284,10 @@ function App() {
         </form>
       </div>
 
-      {/* --- SEÇÃO 2: LAUDO TÉCNICO (Visual Papel A4) --- */}
+      {/* --- SEÇÃO 2: LAUDO TÉCNICO --- */}
       {resultado && (
         <div id="laudo-final" className="document-paper animate-fade-in">
           
-          {/* Aviso Legal */}
           <div className="legal-disclaimer-box">
             <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema, conforme as informações preenchidas pelo próprio usuário. 
             Não assumimos qualquer responsabilidade pelo documento no que diz respeito à sua integralidade, correção e atualização. 
@@ -263,7 +303,6 @@ function App() {
             <div className="doc-line"></div>
           </div>
 
-          {/* 1. Identificação */}
           <section className="doc-section">
             <h3>1.0 Identificação do Instrumento</h3>
             <p>Abaixo detalhamos as condições financeiras da operação de crédito sob análise, conforme sistema de amortização Price (Juros Compostos):</p>
@@ -293,7 +332,6 @@ function App() {
             </table>
           </section>
 
-          {/* 2. Recálculo Gauss */}
           <section className="doc-section">
             <h3>2.0 Recálculo (Método Gauss)</h3>
             <p>Utilizando a taxa média de mercado do Banco Central ({resultado.justo.taxa_mensal}%) e expurgando a capitalização composta (anatocismo) através do Método de Gauss, obtemos:</p>
@@ -310,7 +348,6 @@ function App() {
             </div>
           </section>
 
-          {/* 3. Conclusão */}
           <section className="doc-section bg-light">
             <h3>3.0 Conclusão Financeira</h3>
             <p>Com base na série histórica do Bacen adequada para <strong>{resultado.cabecalho.tipo_contrato}</strong>, identificou-se onerosidade excessiva. O valor estimado a ser restituído (Repetição de Indébito) é:</p>
@@ -319,7 +356,6 @@ function App() {
             </div>
           </section>
 
-          {/* 4. Fonte */}
           <section className="doc-section">
             <h3>4.0 Fonte de Referência Oficial</h3>
             <p>A taxa média de mercado foi obtida diretamente da base de dados do Banco Central do Brasil.</p>
@@ -336,13 +372,11 @@ function App() {
             </div>
           </section>
 
-          {/* Botões do Rodapé (Não sai na impressão) */}
           <div className="doc-footer no-print">
             <button className="btn-print" onClick={() => window.print()}>🖨️ Imprimir PDF</button>
             <button className="btn-whatsapp" onClick={() => window.open(`https://wa.me/?text=Resultado Revisional: R$ ${resultado.resultado.valor_recuperar}`, '_blank')}>📱 Compartilhar</button>
           </div>
           
-          {/* Marca d'água na impressão */}
           <div className="watermark print-only">
              Documento gerado eletronicamente via software de cálculo financeiro.<br/>
              Validação dos índices: www.bcb.gov.br
@@ -350,27 +384,24 @@ function App() {
         </div>
       )}
 
-      {/* --- RODAPÉ COM LINK PARA O SEU PORTFÓLIO (INTERATIVO) --- */}
+      {/* --- RODAPÉ --- */}
       <footer className="dev-footer no-print">
         <p>
           Desenvolvido por{' '}
           <button 
             className="dev-link-btn" 
             onClick={() => setMostrarPortfolio(true)}
-            title="Ver outros projetos"
           >
             Denis da Rosa Ferreira
           </button> 
-          {' '}• Soluções em Tecnologia
         </p>
       </footer>
 
-      {/* --- MODAL DO PORTFÓLIO (A Janela que Abre) --- */}
+      {/* --- MODAL PORTFÓLIO --- */}
       {mostrarPortfolio && (
         <div className="portfolio-modal-backdrop" onClick={() => setMostrarPortfolio(false)}>
           <div className="portfolio-card" onClick={(e) => e.stopPropagation()}>
             <button className="close-btn" onClick={() => setMostrarPortfolio(false)}>×</button>
-            
             <div className="portfolio-header">
               <div className="avatar-circle">DR</div>
               <h2>Denis da Rosa Ferreira</h2>
@@ -379,7 +410,6 @@ function App() {
                 <span>React</span><span>Python</span><span>Firebase</span><span>Automação</span>
               </div>
             </div>
-
             <div className="projects-grid">
               {meusProjetos.map((proj, index) => (
                 <div key={index} className="project-item">
@@ -394,11 +424,10 @@ function App() {
                 </div>
               ))}
             </div>
-
             <div className="portfolio-footer">
               <button 
                 className="btn-whatsapp" 
-                onClick={() => window.open('https://wa.me/5551986583348?text=Olá,%20Denis!%20Vi%20seus%20projetos%20no%20GitHub.', '_blank')}
+                onClick={() => window.open('https://wa.me/5551986583348?text=Olá,%20Denis!%20Vi%20seus%20projetos.', '_blank')}
               >
                 Falar no WhatsApp
               </button>
@@ -406,7 +435,6 @@ function App() {
           </div>
         </div>
       )}
-
     </div>
   )
 }
