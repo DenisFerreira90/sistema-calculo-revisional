@@ -49,9 +49,15 @@ function App() {
     qtde_parcelas: '',
     data_contrato: '',
     tipo_contrato: '', 
-    numero_contrato: ''
+    numero_contrato: '',
+    taxa_manual_bacen: '',   // Taxa de Mercado (Bacen)
+    taxa_manual_contrato: '' // NOVA: Taxa do Banco (Contrato)
   })
   
+  // Checkboxes para ativar os campos manuais
+  const [usarTaxaBacenManual, setUsarTaxaBacenManual] = useState(false)
+  const [usarTaxaContratoManual, setUsarTaxaContratoManual] = useState(false)
+
   const [resultado, setResultado] = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
@@ -60,7 +66,7 @@ function App() {
   const [mostrarPortfolio, setMostrarPortfolio] = useState(false)
   const [mostrarDica, setMostrarDica] = useState(false)
 
-  // --- LÓGICA DO DROPDOWN PERSONALIZADO ---
+  // --- LÓGICA DO DROPDOWN ---
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
   const [sugestoesFiltradas, setSugestoesFiltradas] = useState(OPCOES_CONTRATOS)
   const dropdownRef = useRef(null)
@@ -89,6 +95,46 @@ function App() {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [dropdownRef])
+
+  // --- MÁSCARA INTELIGENTE (ESTILO CALCULADORA) ---
+  const formatarComoCalculadora = (valorInput) => {
+    let v = valorInput.replace(/[^\d,]/g, '');
+    const partes = v.split(',');
+    if (partes.length > 2) {
+      v = partes[0] + ',' + partes.slice(1).join('');
+    }
+    let [inteiro, decimal] = v.split(',');
+    if (inteiro) {
+      inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    if (decimal !== undefined) {
+      decimal = decimal.substring(0, 2);
+      return `${inteiro},${decimal}`;
+    }
+    return inteiro;
+  };
+
+  const handleMoneyChange = (e) => {
+    const valorFormatado = formatarComoCalculadora(e.target.value);
+    setFormulario({ ...formulario, [e.target.name]: valorFormatado });
+  };
+
+  const handleChange = (e) => {
+    setFormulario({ ...formulario, [e.target.name]: e.target.value })
+  }
+
+  // --- LIMPEZA PARA O BACKEND ---
+  const limparValorMoeda = (valorString) => {
+    if (!valorString) return 0;
+    const limpo = valorString.toString().replace(/\./g, '').replace(',', '.');
+    return parseFloat(limpo);
+  }
+
+  const formatarMoeda = (valor) => {
+    if (!valor && valor !== 0) return "0,00";
+    const numero = Number(valor);
+    return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
   // --- SEUS PROJETOS ---
   const meusProjetos = [
@@ -122,26 +168,26 @@ function App() {
     }
   ]
 
-  const handleChange = (e) => {
-    setFormulario({ ...formulario, [e.target.name]: e.target.value })
-  }
-
   const fazerCalculo = async (e) => {
     e.preventDefault()
     setCarregando(true)
     setErro('')
     try {
       const tipoFinal = formulario.tipo_contrato || 'Contrato de Crédito (Genérico)'
+      
       const payload = {
-        valor_liberado: parseFloat(formulario.valor_liberado),
-        valor_parcela: parseFloat(formulario.valor_parcela),
+        valor_liberado: limparValorMoeda(formulario.valor_liberado),
+        valor_parcela: limparValorMoeda(formulario.valor_parcela),
         qtde_parcelas: parseInt(formulario.qtde_parcelas),
         data_contrato: formulario.data_contrato,
         tipo_contrato: tipoFinal,
-        numero_contrato: formulario.numero_contrato || 'Não informado'
+        numero_contrato: formulario.numero_contrato || 'Não informado',
+        
+        // ENVIO DAS TAXAS MANUAIS (Se ativadas)
+        taxa_bacen_manual: usarTaxaBacenManual && formulario.taxa_manual_bacen ? parseFloat(formulario.taxa_manual_bacen.replace(',', '.')) : null,
+        taxa_contrato_manual: usarTaxaContratoManual && formulario.taxa_manual_contrato ? parseFloat(formulario.taxa_manual_contrato.replace(',', '.')) : null
       }
       
-      // ✅ LINK DA API (Certifique-se que este é o link correto do seu Render)
       const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional'
 
       const response = await axios.post(linkAPI, payload)
@@ -153,14 +199,6 @@ function App() {
     } finally {
       setCarregando(false)
     }
-  }
-
-  // 🔥 FUNÇÃO CORRIGIDA PARA GARANTIR 2 CASAS DECIMAIS 🔥
-  const formatarMoeda = (valor) => {
-    if (!valor && valor !== 0) return "0,00";
-    const numero = Number(valor); // Garante que é número
-    // Força exatamente 2 casas, nem mais, nem menos
-    return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   return (
@@ -193,13 +231,10 @@ function App() {
               background: 'rgba(41, 151, 255, 0.1)', border: '1px solid #2997FF', 
               borderRadius: '8px', padding: '15px', marginBottom: '20px', fontSize: '0.85rem', color: '#fff'
             }}>
-              <strong>Como preencher os valores?</strong>
+              <strong>Dicas Rápidas:</strong>
               <ul style={{marginTop: '5px', paddingLeft: '20px', lineHeight: '1.5'}}>
-                <li>Use <strong>vírgula</strong> ou <strong>ponto</strong> para centavos (Ex: 4076,46).</li>
-                <li><strong>Não use ponto</strong> para separar milhares.
-                  <br/>✅ Correto: <code>4076,46</code>
-                  <br/>❌ Errado: <code>4.076,46</code>
-                </li>
+                <li>Digite os números direto (Ex: 1000 = 1.000,00).</li>
+                <li>Se a taxa do sistema não bater com o papel do banco, use a opção <strong>"Taxa do Contrato Manual"</strong>.</li>
               </ul>
             </div>
           )}
@@ -242,11 +277,12 @@ function App() {
             <div className="input-wrapper">
                <span className="currency-symbol">R$</span>
                <input 
-                 type="number" 
-                 step="0.01" 
-                 name="valor_liberado" 
-                 onChange={handleChange} 
-                 placeholder="Ex: 4076,46" 
+                 type="text" 
+                 inputMode="decimal"
+                 name="valor_liberado"
+                 value={formulario.valor_liberado} 
+                 onChange={handleMoneyChange} 
+                 placeholder="0,00" 
                  required 
                />
             </div>
@@ -258,11 +294,12 @@ function App() {
               <div className="input-wrapper">
                 <span className="currency-symbol">R$</span>
                 <input 
-                  type="number" 
-                  step="0.01" 
-                  name="valor_parcela" 
-                  onChange={handleChange} 
-                  placeholder="Ex: 533,76" 
+                  type="text" 
+                  inputMode="decimal"
+                  name="valor_parcela"
+                  value={formulario.valor_parcela} 
+                  onChange={handleMoneyChange} 
+                  placeholder="0,00" 
                   required 
                 />
               </div>
@@ -278,7 +315,66 @@ function App() {
             <input type="date" name="data_contrato" onChange={handleChange} required />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={carregando}>
+          {/* --- ÁREA DE AJUSTES FINOS (TAXAS MANUAIS) --- */}
+          <div style={{marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
+            <h4 style={{color: '#555', marginTop: 0, fontSize: '0.9rem', marginBottom: '15px'}}>🔧 Ajustes Finos (Opcional)</h4>
+            
+            {/* 1. Taxa do Contrato (Banco) */}
+            <div style={{marginBottom: '10px'}}>
+              <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
+                <input 
+                  type="checkbox" 
+                  id="checkContrato" 
+                  checked={usarTaxaContratoManual}
+                  onChange={(e) => setUsarTaxaContratoManual(e.target.checked)}
+                  style={{width: '18px', height: '18px', marginRight: '8px'}}
+                />
+                <label htmlFor="checkContrato" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>
+                  Tenho a Taxa do Contrato (Banco) exata
+                </label>
+              </div>
+              {usarTaxaContratoManual && (
+                <input 
+                  type="number" step="0.01" 
+                  name="taxa_manual_contrato"
+                  value={formulario.taxa_manual_contrato} 
+                  onChange={handleChange} 
+                  placeholder="% ao mês (Ex: 3.55)" 
+                  className="input-field"
+                  style={{fontSize: '0.9rem', padding: '8px'}}
+                />
+              )}
+            </div>
+
+            {/* 2. Taxa de Mercado (Bacen) */}
+            <div>
+              <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
+                <input 
+                  type="checkbox" 
+                  id="checkBacen" 
+                  checked={usarTaxaBacenManual}
+                  onChange={(e) => setUsarTaxaBacenManual(e.target.checked)}
+                  style={{width: '18px', height: '18px', marginRight: '8px'}}
+                />
+                <label htmlFor="checkBacen" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>
+                  Definir Taxa Média (Bacen) manualmente
+                </label>
+              </div>
+              {usarTaxaBacenManual && (
+                <input 
+                  type="number" step="0.01" 
+                  name="taxa_manual_bacen"
+                  value={formulario.taxa_manual_bacen} 
+                  onChange={handleChange} 
+                  placeholder="% ao mês (Ex: 1.85)" 
+                  className="input-field"
+                  style={{fontSize: '0.9rem', padding: '8px'}}
+                />
+              )}
+            </div>
+          </div>
+
+          <button type="submit" className="btn-primary" disabled={carregando} style={{marginTop: '20px'}}>
             {carregando ? 'Calculando Perícia...' : 'Gerar Parecer Técnico'}
           </button>
           {erro && <p className="error-message">{erro}</p>}
@@ -290,10 +386,8 @@ function App() {
         <div id="laudo-final" className="document-paper animate-fade-in">
           
           <div className="legal-disclaimer-box">
-            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema, conforme as informações preenchidas pelo próprio usuário. 
-            Não assumimos qualquer responsabilidade pelo documento no que diz respeito à sua integralidade, correção e atualização. 
-            O usuário assume toda e qualquer responsabilidade, de caráter civil e/ou criminal, pela utilização indevida das informações abaixo.
-            O presente documento serve como parecer técnico preliminar.
+            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema. 
+            O usuário assume responsabilidade pelas informações inseridas. Documento de caráter preliminar.
           </div>
 
           <div className="doc-header">
@@ -306,7 +400,7 @@ function App() {
 
           <section className="doc-section">
             <h3>1.0 Identificação do Instrumento</h3>
-            <p>Abaixo detalhamos as condições financeiras da operação de crédito sob análise, conforme sistema de amortização Price (Juros Compostos):</p>
+            <p>Abaixo detalhamos as condições financeiras da operação de crédito sob análise:</p>
             <table className="doc-table">
               <tbody>
                 <tr>
@@ -315,11 +409,15 @@ function App() {
                 </tr>
                 <tr>
                   <td>Valor Financiado (Líquido):</td>
-                  <td><strong>R$ {formatarMoeda(parseFloat(formulario.valor_liberado))}</strong></td>
+                  <td><strong>R$ {formatarMoeda(limparValorMoeda(formulario.valor_liberado))}</strong></td>
                 </tr>
                 <tr>
                   <td>Prestação Mensal (Atual):</td>
                   <td>R$ {formatarMoeda(resultado.banco.parcela)}</td>
+                </tr>
+                <tr>
+                  <td>Taxa Mensal (Praticada):</td>
+                  <td><strong>{resultado.banco.taxa_mensal}% a.m.</strong></td>
                 </tr>
                 <tr>
                   <td>Taxa Anual (Efetiva):</td>
@@ -331,9 +429,8 @@ function App() {
 
           <section className="doc-section">
             <h3>2.0 Análise Comparativa e Recálculo</h3>
-            <p>Realizou-se o confronto entre a taxa de juros aplicada no contrato e a Taxa Média de Mercado divulgada pelo Banco Central do Brasil (Série {resultado.justo.codigo_serie}) para a mesma modalidade e época:</p>
+            <p>Realizou-se o confronto entre a taxa de juros aplicada no contrato e a Taxa Média de Mercado divulgada pelo Banco Central do Brasil para a mesma modalidade e época:</p>
             
-            {/* --- BOX DE COMPARAÇÃO DE TAXAS --- */}
             <div className="gauss-highlight" style={{marginBottom: '20px', borderColor: '#ccc', background: '#fff'}}>
               <div className="gauss-item">
                 <span style={{color: '#d32f2f', fontWeight: 'bold'}}>Taxa Cobrada (Banco)</span>
@@ -373,10 +470,10 @@ function App() {
 
           <section className="doc-section">
             <h3>4.0 Fonte de Referência Oficial</h3>
-            <p>A taxa média de mercado foi obtida diretamente da base de dados do Banco Central do Brasil.</p>
+            <p>A taxa média de mercado foi obtida conforme os parâmetros abaixo:</p>
             <div className="source-box">
               <strong>Série Utilizada:</strong> {resultado.justo.codigo_serie} (Banco Central)<br/>
-              <strong>Link para Auditoria:</strong> <br/>
+              <strong>Fonte dos Dados:</strong> {resultado.justo.fonte}<br/>
               <a 
                 href={`https://www3.bcb.gov.br/sgspub/consultarvalores/consultarValoresSeries.do?method=consultarSeries&series=${resultado.justo.codigo_serie || 25471}`} 
                 target="_blank" 
