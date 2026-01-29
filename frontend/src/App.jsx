@@ -50,8 +50,8 @@ function App() {
     data_contrato: '',
     tipo_contrato: '', 
     numero_contrato: '',
-    taxa_manual_bacen: '',   // Taxa de Mercado (Bacen)
-    taxa_manual_contrato: '' // NOVA: Taxa do Banco (Contrato)
+    taxa_manual_bacen: '',   
+    taxa_manual_contrato: '' 
   })
   
   // Checkboxes para ativar os campos manuais
@@ -62,9 +62,10 @@ function App() {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
   
-  // Estados de Interface
+  // Estados de Interface (Popups)
   const [mostrarPortfolio, setMostrarPortfolio] = useState(false)
   const [mostrarDica, setMostrarDica] = useState(false)
+  const [mostrarAjuda, setMostrarAjuda] = useState(false) // <--- NOVO POPUP DE EXPLICAÇÃO
 
   // --- LÓGICA DO DROPDOWN ---
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
@@ -96,7 +97,7 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [dropdownRef])
 
-  // --- MÁSCARA INTELIGENTE (ESTILO CALCULADORA) ---
+  // --- MÁSCARA INTELIGENTE ---
   const formatarComoCalculadora = (valorInput) => {
     let v = valorInput.replace(/[^\d,]/g, '');
     const partes = v.split(',');
@@ -123,7 +124,6 @@ function App() {
     setFormulario({ ...formulario, [e.target.name]: e.target.value })
   }
 
-  // --- LIMPEZA PARA O BACKEND ---
   const limparValorMoeda = (valorString) => {
     if (!valorString) return 0;
     const limpo = valorString.toString().replace(/\./g, '').replace(',', '.');
@@ -136,7 +136,7 @@ function App() {
     return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // --- SEUS PROJETOS ---
+  // --- SEUS PROJETOS (Mantive igual) ---
   const meusProjetos = [
     {
       titulo: "PDV Appetite (PWA) - App & Web",
@@ -182,8 +182,6 @@ function App() {
         data_contrato: formulario.data_contrato,
         tipo_contrato: tipoFinal,
         numero_contrato: formulario.numero_contrato || 'Não informado',
-        
-        // ENVIO DAS TAXAS MANUAIS (Se ativadas)
         taxa_bacen_manual: usarTaxaBacenManual && formulario.taxa_manual_bacen ? parseFloat(formulario.taxa_manual_bacen.replace(',', '.')) : null,
         taxa_contrato_manual: usarTaxaContratoManual && formulario.taxa_manual_contrato ? parseFloat(formulario.taxa_manual_contrato.replace(',', '.')) : null
       }
@@ -209,6 +207,19 @@ function App() {
         <header className="app-header">
           <h1>Cálculo Revisional Pro</h1>
           <p>Sistema de Perícia Financeira (Método Gauss)</p>
+          
+          {/* BOTÃO PARA ABRIR O POPUP DE AJUDA */}
+          <button 
+            className="btn-help-header" 
+            onClick={() => setMostrarAjuda(true)}
+            style={{
+              marginTop: '10px', background: '#fff', color: '#2997FF', 
+              border: '1px solid #2997FF', borderRadius: '20px', 
+              padding: '5px 15px', cursor: 'pointer', fontWeight: 'bold'
+            }}
+          >
+            💡 Entenda como funciona o cálculo
+          </button>
         </header>
 
         <form onSubmit={fazerCalculo} className="card">
@@ -315,11 +326,11 @@ function App() {
             <input type="date" name="data_contrato" onChange={handleChange} required />
           </div>
 
-          {/* --- ÁREA DE AJUSTES FINOS (TAXAS MANUAIS) --- */}
+          {/* --- ÁREA DE AJUSTES FINOS --- */}
           <div style={{marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
             <h4 style={{color: '#555', marginTop: 0, fontSize: '0.9rem', marginBottom: '15px'}}>🔧 Ajustes Finos (Opcional)</h4>
             
-            {/* 1. Taxa do Contrato (Banco) */}
+            {/* 1. Taxa do Contrato */}
             <div style={{marginBottom: '10px'}}>
               <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
                 <input 
@@ -346,7 +357,7 @@ function App() {
               )}
             </div>
 
-            {/* 2. Taxa de Mercado (Bacen) */}
+            {/* 2. Taxa do Bacen */}
             <div>
               <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
                 <input 
@@ -474,13 +485,22 @@ function App() {
             <div className="source-box">
               <strong>Série Utilizada:</strong> {resultado.justo.codigo_serie} (Banco Central)<br/>
               <strong>Fonte dos Dados:</strong> {resultado.justo.fonte}<br/>
-              <a 
-                href={`https://www3.bcb.gov.br/sgspub/consultarvalores/consultarValoresSeries.do?method=consultarSeries&series=${resultado.justo.codigo_serie || 25471}`} 
-                target="_blank" 
-                rel="noreferrer"
-              >
-                Clique aqui para validar a taxa no site do Bacen
-              </a>
+              
+              {resultado.justo.observacao && (
+                <div style={{marginTop: '10px', padding: '10px', background: '#fffde7', borderLeft: '4px solid #fbc02d', color: '#555', fontSize: '0.85rem'}}>
+                  <strong>Nota Técnica:</strong> {resultado.justo.observacao}
+                </div>
+              )}
+              
+              <div style={{marginTop: '10px'}}>
+                <a 
+                  href={`https://www3.bcb.gov.br/sgspub/consultarvalores/consultarValoresSeries.do?method=consultarSeries&series=${resultado.justo.codigo_serie || 25471}`} 
+                  target="_blank" 
+                  rel="noreferrer"
+                >
+                  Clique aqui para validar a taxa no site do Bacen
+                </a>
+              </div>
             </div>
           </section>
 
@@ -547,6 +567,57 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* --- NOVO: MODAL DE AJUDA / EXPLICAÇÃO --- */}
+      {mostrarAjuda && (
+        <div className="portfolio-modal-backdrop" onClick={() => setMostrarAjuda(false)}>
+          <div className="portfolio-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '600px'}}>
+            <button className="close-btn" onClick={() => setMostrarAjuda(false)}>×</button>
+            
+            <div style={{padding: '10px 0'}}>
+              <h2 style={{color: '#2997FF', marginBottom: '15px'}}>💡 Entenda o Cálculo Revisional</h2>
+              
+              <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#444'}}>
+                Este sistema faz uma <strong>Perícia Financeira Automática</strong> baseada em 3 pilares:
+              </p>
+
+              <div style={{background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px'}}>
+                <h4 style={{margin: '0 0 5px 0', color: '#d32f2f'}}>1. O Vilão (O que o Banco fez)</h4>
+                <p style={{fontSize: '0.9rem', color: '#666'}}>
+                  O banco cobrou <strong>Juros Compostos</strong> (Juros sobre Juros / Tabela Price) e, muitas vezes, uma taxa muito acima da média de mercado. Isso faz a dívida crescer como uma bola de neve.
+                </p>
+              </div>
+
+              <div style={{background: '#e8f5e9', padding: '15px', borderRadius: '8px', marginBottom: '15px'}}>
+                <h4 style={{margin: '0 0 5px 0', color: '#2e7d32'}}>2. O Herói (O que nós fazemos)</h4>
+                <p style={{fontSize: '0.9rem', color: '#666'}}>
+                  O sistema busca a <strong>Taxa Média do Banco Central</strong> (a taxa justa da época) e recalcula tudo usando o <strong>Método de Gauss</strong> (Juros Simples).
+                </p>
+              </div>
+
+              <div style={{background: '#e3f2fd', padding: '15px', borderRadius: '8px'}}>
+                <h4 style={{margin: '0 0 5px 0', color: '#1565c0'}}>3. O Resultado</h4>
+                <p style={{fontSize: '0.9rem', color: '#666'}}>
+                  A diferença entre o que foi cobrado (caro) e o que deveria ter sido cobrado (justo) é o <strong>Valor a Recuperar</strong> que aparece no final do laudo.
+                </p>
+              </div>
+
+              <p style={{marginTop: '20px', fontSize: '0.85rem', color: '#888', textAlign: 'center'}}>
+                <em>Este cálculo serve para embasar ações revisionais e negociações extrajudiciais.</em>
+              </p>
+
+              <button 
+                onClick={() => setMostrarAjuda(false)}
+                className="btn-primary" 
+                style={{marginTop: '15px', width: '100%'}}
+              >
+                Entendi, vamos calcular!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

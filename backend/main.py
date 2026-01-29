@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- MODELO DE DADOS (O que vem do site) ---
+# --- MODELO DE DADOS ---
 class DadosFinanciamento(BaseModel):
     valor_liberado: float
     valor_parcela: float
@@ -54,57 +54,54 @@ def obter_codigo_serie(tipo_texto):
         return 25471 
 
     # 2. CARTÃO DE CRÉDITO - ROTATIVO (Série 25477)
-    # Taxas altíssimas, rotativo total
+    # Taxas altíssimas. Usado para "Cartão Genérico" como estratégia jurídica.
     if "rotativo" in texto:
         return 25477 
 
     # 3. CARTÃO DE CRÉDITO - PARCELADO (Série 25478)
-    # Taxas menores que o rotativo, para faturas parceladas
+    # Taxas menores. Só usa se estiver EXPLÍCITO que é parcelado.
     if "cartão" in texto and "parcelado" in texto:
         return 25478
     
-    # Genérico Cartão (Se não especificar, joga pro Rotativo que é o padrão de abuso)
+    # 🔥 ESTRATÉGIA AGRESSIVA (CONSUMIDOR):
+    # Se for RMC, Benefício ou Cartão Genérico, joga para o ROTATIVO (25477).
+    # O banco que lute para provar que era taxa menor.
     if "cartão" in texto or "rmc" in texto or "benefício" in texto:
         return 25477
 
     # 4. CHEQUE ESPECIAL (Série 25463)
-    # Engloba cheque especial e conta garantida PF
     if any(x in texto for x in ["cheque", "conta corrente", "limite"]):
         return 25463 
 
     # 5. CONSIGNADO - INSS (Série 25468)
-    # Específico para aposentados e pensionistas
+    # Aposentados e Pensionistas (Risco Baixo = Taxa Baixa)
     if "inss" in texto:
         return 25468 
 
     # 6. CONSIGNADO - SETOR PÚBLICO (Série 25467)
-    # Específico para Servidores Federais, Estaduais, Municipais e Militares
+    # Servidores e Militares (Risco Baixo = Taxa Baixa)
     if any(x in texto for x in ["siape", "servidor", "público", "militar", "estadual", "federal"]):
         return 25467 
 
     # 7. CONSIGNADO - SETOR PRIVADO / CLT (Série 25466)
-    # Específico para trabalhadores com carteira assinada (Risco maior que Público)
+    # Carteira Assinada (Risco Médio = Taxa um pouco maior que INSS)
     if any(x in texto for x in ["clt", "privado", "empresa"]):
         return 25466 
 
     # Fallback Consignado (Série 25469 - Total)
-    # Se não especificou quem paga, usa a média geral de consignados
     if "consignado" in texto:
         return 25469 
 
     # 8. PESSOA JURÍDICA / GIRO (Série 20749)
-    # Capital de giro com prazo > 365 dias (Mais comum para contratos longos)
     if any(x in texto for x in ["giro", "duplicata", "recebíveis", "industrial", "comercial", "pj", "garantida", "ccc", "cci"]):
         return 20749 
 
     # 9. IMOBILIÁRIO (Usa Veículo 25471 como Proxy de Garantia Real)
-    # O Bacen não tem série diária fácil para SFH no SGS. 
-    # Usamos Veículos como referência de "Crédito com Garantia de Bem".
-    if any(x in texto for x in ["imóvel", "imobiliário", "casa", "sfh", "sfi"]):
+    if any(x in texto for x in ["imóvel", "imobiliário", "casa", "sfh", "sfi", "terreno"]):
         return 25471
 
     # PADRÃO: CRÉDITO PESSOAL NÃO CONSIGNADO (Série 25464)
-    # Série genérica para empréstimos pessoais sem garantia (Juros Livres)
+    # Juros Livres (Série mais alta depois do cartão/cheque)
     return 25464
 
 # --- CÁLCULO JUDICIAL (MÉTODO GAUSS) ---
@@ -148,7 +145,6 @@ def calcular(dados: DadosFinanciamento):
         taxa_banco_perc = dados.taxa_contrato_manual
         # Converte para decimal para cálculos internos (ex: 3.55 -> 0.0355)
         taxa_decimal_banco = taxa_banco_perc / 100
-        # Recalcula a anual baseada na mensal informada
         taxa_anual_banco = ((1 + taxa_decimal_banco)**12 - 1) * 100
     else:
         # Se não, calcula via Engenharia Reversa (Price)
@@ -162,14 +158,27 @@ def calcular(dados: DadosFinanciamento):
             taxa_anual_banco = 0.0
 
     # ---------------------------------------------------------
-    # 2. DEFINIR A TAXA JUSTA (MERCADO / BACEN)
+    # 2. DEFINIR A TAXA JUSTA & NOTAS JURÍDICAS
     # ---------------------------------------------------------
     codigo_serie = obter_codigo_serie(dados.tipo_contrato)
+    observacao_taxa = "" # Campo para notas técnicas no laudo
+
+    # Lógica para preencher a observação (Segurança Jurídica)
+    texto_contrato = dados.tipo_contrato.lower()
     
-    # Se o usuário digitou a taxa de mercado manualmente, usa ela.
+    # OBS 1: Proxy Imobiliário
+    if codigo_serie == 25471 and any(x in texto_contrato for x in ["imóvel", "imobiliário", "casa", "sfh", "sfi"]):
+        observacao_taxa = "Taxa imobiliária estimada por proxy de crédito com garantia real (Veículos - SGS 25471), devido à ausência de série diária específica para SFH."
+
+    # OBS 2: Estratégia Cartão Genérico
+    elif codigo_serie == 25477 and ("cartão" in texto_contrato or "rmc" in texto_contrato) and "rotativo" not in texto_contrato:
+        observacao_taxa = "Adotada a série de Cartão Rotativo (25477) pelo princípio da interpretação mais favorável ao consumidor (art. 47 CDC), salvo prova em contrário de parcelamento com taxas inferiores."
+
+    # Decisão: Taxa Manual ou Busca no Bacen?
     if dados.taxa_bacen_manual is not None and dados.taxa_bacen_manual > 0:
         taxa_justa_perc = dados.taxa_bacen_manual
         fonte_taxa = "Taxa de Mercado Definida Manualmente pelo Usuário"
+        observacao_taxa = "Taxa inserida manualmente pelo perito/usuário para ajuste fino."
     else:
         # Busca automática no Bacen
         taxa_bacen_perc = buscar_taxa_bacen(dados.data_contrato, codigo_serie)
@@ -195,7 +204,6 @@ def calcular(dados: DadosFinanciamento):
     # ---------------------------------------------------------
     # 3. RECÁLCULO (MÉTODO DE GAUSS)
     # ---------------------------------------------------------
-    # Calcula a parcela justa usando a taxa de mercado definida acima
     parcela_gauss = calcular_parcela_gauss(
         dados.valor_liberado, 
         dados.qtde_parcelas, 
@@ -203,17 +211,15 @@ def calcular(dados: DadosFinanciamento):
     )
     
     # Trava de Segurança: A parcela revisional não pode ser maior que a original.
-    # Se isso acontecer (raro, mas possível se a taxa do Bacen for maior que a do contrato),
-    # mantemos a taxa do contrato ou recalculamos via Price com a taxa menor.
     if parcela_gauss > dados.valor_parcela:
-         # Opção conservadora: Usa a taxa justa mas no sistema Price (juros simples vs compostos)
+         # Opção conservadora: Usa a taxa justa mas no sistema Price
          parcela_gauss = npf.pmt(taxa_justa_perc/100, dados.qtde_parcelas, -dados.valor_liberado)
-         # Se ainda assim for maior (significa que o banco cobrou MUITO barato), trava no valor original
+         # Se ainda assim for maior, trava no valor original (não há o que revisar)
          if parcela_gauss > dados.valor_parcela:
              parcela_gauss = dados.valor_parcela
 
     # ---------------------------------------------------------
-    # 4. CONSOLIDAÇÃO DOS RESULTADOS (COM ARREDONDAMENTO)
+    # 4. RESULTADOS (COM ARREDONDAMENTO)
     # ---------------------------------------------------------
     total_pago_banco = dados.valor_parcela * dados.qtde_parcelas
     total_pago_justo = parcela_gauss * dados.qtde_parcelas
@@ -238,6 +244,7 @@ def calcular(dados: DadosFinanciamento):
             "taxa_mensal": arredondar(taxa_justa_perc),
             "fonte": fonte_taxa,
             "codigo_serie": str(codigo_serie),
+            "observacao": observacao_taxa,
             "parcela": arredondar(parcela_gauss),
             "total": arredondar(total_pago_justo)
         },
@@ -247,7 +254,6 @@ def calcular(dados: DadosFinanciamento):
         }
     }
 
-# Rota de teste simples para saber se está online
 @app.get("/")
 def home():
-    return {"status": "API Revisional Online", "versao": "4.0 Final - SGS Codes Fixed"}
+    return {"status": "API Revisional Online", "versao": "7.0 Final Full Features"}
