@@ -45,6 +45,8 @@ function App() {
   // --- ESTADOS DO SISTEMA ---
   const [formulario, setFormulario] = useState({
     valor_liberado: '',
+    iof: '',
+    seguros_taxas: '',
     valor_parcela: '',
     qtde_parcelas: '',
     data_contrato: '',
@@ -57,6 +59,7 @@ function App() {
   // Checkboxes para ativar os campos manuais
   const [usarTaxaBacenManual, setUsarTaxaBacenManual] = useState(false)
   const [usarTaxaContratoManual, setUsarTaxaContratoManual] = useState(false)
+  const [mostrarTarifas, setMostrarTarifas] = useState(false) // Toggle das tarifas extras
 
   const [resultado, setResultado] = useState(null)
   const [carregando, setCarregando] = useState(false)
@@ -65,7 +68,7 @@ function App() {
   // Estados de Interface (Popups)
   const [mostrarPortfolio, setMostrarPortfolio] = useState(false)
   const [mostrarDica, setMostrarDica] = useState(false)
-  const [mostrarAjuda, setMostrarAjuda] = useState(false) // <--- NOVO POPUP DE EXPLICAÇÃO
+  const [mostrarAjuda, setMostrarAjuda] = useState(false) 
 
   // --- LÓGICA DO DROPDOWN ---
   const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
@@ -125,9 +128,9 @@ function App() {
   }
 
   const limparValorMoeda = (valorString) => {
-    if (!valorString) return 0;
+    if (!valorString) return 0.0;
     const limpo = valorString.toString().replace(/\./g, '').replace(',', '.');
-    return parseFloat(limpo);
+    return parseFloat(limpo) || 0.0;
   }
 
   const formatarMoeda = (valor) => {
@@ -136,7 +139,7 @@ function App() {
     return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // --- SEUS PROJETOS (Mantive igual) ---
+  // --- SEUS PROJETOS ---
   const meusProjetos = [
     {
       titulo: "PDV Appetite (PWA) - App & Web",
@@ -177,6 +180,8 @@ function App() {
       
       const payload = {
         valor_liberado: limparValorMoeda(formulario.valor_liberado),
+        iof: limparValorMoeda(formulario.iof),
+        seguros_taxas: limparValorMoeda(formulario.seguros_taxas),
         valor_parcela: limparValorMoeda(formulario.valor_parcela),
         qtde_parcelas: parseInt(formulario.qtde_parcelas),
         data_contrato: formulario.data_contrato,
@@ -186,7 +191,6 @@ function App() {
         taxa_contrato_manual: usarTaxaContratoManual && formulario.taxa_manual_contrato ? parseFloat(formulario.taxa_manual_contrato.replace(',', '.')) : null
       }
       
-      // Puxa o link do arquivo .env. Se não encontrar, tenta usar no próprio PC.
       const baseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
       const linkAPI = `${baseUrl}/calcular-revisional`
 
@@ -209,8 +213,6 @@ function App() {
         <header className="app-header">
           <h1>Cálculo Revisional Pro</h1>
           <p>Sistema de Perícia Financeira (Método Gauss)</p>
-          
-          {/* BOTÃO PARA ABRIR O POPUP DE AJUDA */}
           <button 
             className="btn-help-header" 
             onClick={() => setMostrarAjuda(true)}
@@ -230,23 +232,17 @@ function App() {
             <button 
               type="button"
               onClick={() => setMostrarDica(!mostrarDica)}
-              style={{
-                background: 'transparent', border: 'none', color: '#2997FF', 
-                cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold'
-              }}
+              style={{ background: 'transparent', border: 'none', color: '#2997FF', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' }}
             >
               ❓ Dúvidas no preenchimento?
             </button>
           </div>
 
           {mostrarDica && (
-            <div style={{
-              background: 'rgba(41, 151, 255, 0.1)', border: '1px solid #2997FF', 
-              borderRadius: '8px', padding: '15px', marginBottom: '20px', fontSize: '0.85rem', color: '#fff'
-            }}>
+            <div style={{ background: 'rgba(41, 151, 255, 0.1)', border: '1px solid #2997FF', borderRadius: '8px', padding: '15px', marginBottom: '20px', fontSize: '0.85rem', color: '#fff' }}>
               <strong>Dicas Rápidas:</strong>
               <ul style={{marginTop: '5px', paddingLeft: '20px', lineHeight: '1.5'}}>
-                <li>Digite os números direto (Ex: 1000 = 1.000,00).</li>
+                <li>Preencha as taxas Extras (IOF/Seguro) para blindar a base de cálculo.</li>
                 <li>Se a taxa do sistema não bater com o papel do banco, use a opção <strong>"Taxa do Contrato Manual"</strong>.</li>
               </ul>
             </div>
@@ -255,27 +251,16 @@ function App() {
           <div className="form-group" ref={dropdownRef} style={{position: 'relative'}}>
             <label>Tipo de Contrato</label>
             <input 
-              type="text"
-              name="tipo_contrato" 
-              value={formulario.tipo_contrato} 
-              onChange={handleTipoChange}
-              onFocus={() => setMostrarSugestoes(true)}
-              placeholder="Digite para buscar..." 
-              className="input-field"
-              autoComplete="off"
-              required
+              type="text" name="tipo_contrato" value={formulario.tipo_contrato} onChange={handleTipoChange}
+              onFocus={() => setMostrarSugestoes(true)} placeholder="Digite para buscar..." className="input-field" autoComplete="off" required
             />
             {mostrarSugestoes && (
               <ul className="custom-dropdown-list">
                 {sugestoesFiltradas.length > 0 ? (
                   sugestoesFiltradas.map((opcao, index) => (
-                    <li key={index} onClick={() => selecionarTipo(opcao)} className="dropdown-item">
-                      {opcao}
-                    </li>
+                    <li key={index} onClick={() => selecionarTipo(opcao)} className="dropdown-item">{opcao}</li>
                   ))
-                ) : (
-                  <li className="dropdown-item disabled">Nenhuma opção encontrada...</li>
-                )}
+                ) : ( <li className="dropdown-item disabled">Nenhuma opção encontrada...</li> )}
               </ul>
             )}
           </div>
@@ -286,35 +271,49 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label>Valor Liberado (Líquido)</label>
+            <label>Valor Liberado (Recebido na Conta)</label>
             <div className="input-wrapper">
                <span className="currency-symbol">R$</span>
-               <input 
-                 type="text" 
-                 inputMode="decimal"
-                 name="valor_liberado"
-                 value={formulario.valor_liberado} 
-                 onChange={handleMoneyChange} 
-                 placeholder="0,00" 
-                 required 
-               />
+               <input type="text" inputMode="decimal" name="valor_liberado" value={formulario.valor_liberado} onChange={handleMoneyChange} placeholder="0,00" required />
             </div>
           </div>
+
+          {/* TOGGLE PARA MOSTRAR TARIFAS EXTRAS (IOF E SEGURO) */}
+          <div style={{marginBottom: '20px'}}>
+            <button 
+              type="button" 
+              onClick={() => setMostrarTarifas(!mostrarTarifas)}
+              style={{ background: 'transparent', border: '1px solid #555', color: '#ccc', borderRadius: '8px', padding: '8px 12px', fontSize: '0.85rem', width: '100%', cursor: 'pointer' }}
+            >
+              {mostrarTarifas ? 'Ocultar Tarifas Embutidas' : '+ Adicionar IOF e Seguros/Taxas'}
+            </button>
+          </div>
+
+          {mostrarTarifas && (
+            <div className="row" style={{marginBottom: '20px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px'}}>
+              <div className="form-group" style={{marginBottom: 0}}>
+                <label>IOF (Imposto)</label>
+                <div className="input-wrapper">
+                  <span className="currency-symbol">R$</span>
+                  <input type="text" inputMode="decimal" name="iof" value={formulario.iof} onChange={handleMoneyChange} placeholder="0,00" />
+                </div>
+              </div>
+              <div className="form-group" style={{marginBottom: 0}}>
+                <label>Seguro / Outras Taxas</label>
+                <div className="input-wrapper">
+                  <span className="currency-symbol">R$</span>
+                  <input type="text" inputMode="decimal" name="seguros_taxas" value={formulario.seguros_taxas} onChange={handleMoneyChange} placeholder="0,00" />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="row">
             <div className="form-group">
               <label>Valor da Parcela</label>
               <div className="input-wrapper">
                 <span className="currency-symbol">R$</span>
-                <input 
-                  type="text" 
-                  inputMode="decimal"
-                  name="valor_parcela"
-                  value={formulario.valor_parcela} 
-                  onChange={handleMoneyChange} 
-                  placeholder="0,00" 
-                  required 
-                />
+                <input type="text" inputMode="decimal" name="valor_parcela" value={formulario.valor_parcela} onChange={handleMoneyChange} placeholder="0,00" required />
               </div>
             </div>
             <div className="form-group">
@@ -328,62 +327,22 @@ function App() {
             <input type="date" name="data_contrato" onChange={handleChange} required />
           </div>
 
-          {/* --- ÁREA DE AJUSTES FINOS --- */}
+          {/* AJUSTES FINOS */}
           <div style={{marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
             <h4 style={{color: '#555', marginTop: 0, fontSize: '0.9rem', marginBottom: '15px'}}>🔧 Ajustes Finos (Opcional)</h4>
-            
-            {/* 1. Taxa do Contrato */}
             <div style={{marginBottom: '10px'}}>
               <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
-                <input 
-                  type="checkbox" 
-                  id="checkContrato" 
-                  checked={usarTaxaContratoManual}
-                  onChange={(e) => setUsarTaxaContratoManual(e.target.checked)}
-                  style={{width: '18px', height: '18px', marginRight: '8px'}}
-                />
-                <label htmlFor="checkContrato" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>
-                  Tenho a Taxa do Contrato (Banco) exata
-                </label>
+                <input type="checkbox" id="checkContrato" checked={usarTaxaContratoManual} onChange={(e) => setUsarTaxaContratoManual(e.target.checked)} style={{width: '18px', height: '18px', marginRight: '8px'}} />
+                <label htmlFor="checkContrato" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>Tenho a Taxa do Contrato exata</label>
               </div>
-              {usarTaxaContratoManual && (
-                <input 
-                  type="number" step="0.01" 
-                  name="taxa_manual_contrato"
-                  value={formulario.taxa_manual_contrato} 
-                  onChange={handleChange} 
-                  placeholder="% ao mês (Ex: 3.55)" 
-                  className="input-field"
-                  style={{fontSize: '0.9rem', padding: '8px'}}
-                />
-              )}
+              {usarTaxaContratoManual && <input type="number" step="0.01" name="taxa_manual_contrato" value={formulario.taxa_manual_contrato} onChange={handleChange} placeholder="% ao mês (Ex: 3.55)" className="input-field" style={{fontSize: '0.9rem', padding: '8px'}} />}
             </div>
-
-            {/* 2. Taxa do Bacen */}
             <div>
               <div style={{display: 'flex', alignItems: 'center', marginBottom: '5px'}}>
-                <input 
-                  type="checkbox" 
-                  id="checkBacen" 
-                  checked={usarTaxaBacenManual}
-                  onChange={(e) => setUsarTaxaBacenManual(e.target.checked)}
-                  style={{width: '18px', height: '18px', marginRight: '8px'}}
-                />
-                <label htmlFor="checkBacen" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>
-                  Definir Taxa Média (Bacen) manualmente
-                </label>
+                <input type="checkbox" id="checkBacen" checked={usarTaxaBacenManual} onChange={(e) => setUsarTaxaBacenManual(e.target.checked)} style={{width: '18px', height: '18px', marginRight: '8px'}} />
+                <label htmlFor="checkBacen" style={{fontSize: '0.85rem', color: '#333', cursor: 'pointer'}}>Definir Taxa Média (Bacen) manual</label>
               </div>
-              {usarTaxaBacenManual && (
-                <input 
-                  type="number" step="0.01" 
-                  name="taxa_manual_bacen"
-                  value={formulario.taxa_manual_bacen} 
-                  onChange={handleChange} 
-                  placeholder="% ao mês (Ex: 1.85)" 
-                  className="input-field"
-                  style={{fontSize: '0.9rem', padding: '8px'}}
-                />
-              )}
+              {usarTaxaBacenManual && <input type="number" step="0.01" name="taxa_manual_bacen" value={formulario.taxa_manual_bacen} onChange={handleChange} placeholder="% ao mês (Ex: 1.85)" className="input-field" style={{fontSize: '0.9rem', padding: '8px'}} />}
             </div>
           </div>
 
@@ -397,10 +356,8 @@ function App() {
       {/* --- SEÇÃO 2: LAUDO TÉCNICO --- */}
       {resultado && (
         <div id="laudo-final" className="document-paper animate-fade-in">
-          
           <div className="legal-disclaimer-box">
-            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema. 
-            O usuário assume responsabilidade pelas informações inseridas. Documento de caráter preliminar.
+            <strong>AVISO LEGAL:</strong> Este documento foi gerado de forma automática pelo sistema. O usuário assume responsabilidade pelas informações inseridas. Documento de caráter preliminar.
           </div>
 
           <div className="doc-header">
@@ -421,20 +378,32 @@ function App() {
                   <td><strong>{resultado.cabecalho.tipo_contrato}</strong></td>
                 </tr>
                 <tr>
-                  <td>Valor Financiado (Líquido):</td>
-                  <td><strong>R$ {formatarMoeda(limparValorMoeda(formulario.valor_liberado))}</strong></td>
+                  <td>Valor Líquido Recebido:</td>
+                  <td>R$ {formatarMoeda(resultado.cabecalho.valor_recebido)}</td>
+                </tr>
+                {resultado.cabecalho.valor_iof > 0 && (
+                  <tr>
+                    <td>IOF Embutido:</td>
+                    <td>R$ {formatarMoeda(resultado.cabecalho.valor_iof)}</td>
+                  </tr>
+                )}
+                {resultado.cabecalho.valor_seguros > 0 && (
+                  <tr>
+                    <td>Seguros / Taxas Extras:</td>
+                    <td>R$ {formatarMoeda(resultado.cabecalho.valor_seguros)}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td style={{background: '#f8f9fa', fontWeight: 'bold'}}>Valor Total Financiado (Base de Cálculo):</td>
+                  <td style={{background: '#f8f9fa'}}><strong>R$ {formatarMoeda(resultado.cabecalho.valor_total_financiado)}</strong></td>
                 </tr>
                 <tr>
                   <td>Prestação Mensal (Atual):</td>
                   <td>R$ {formatarMoeda(resultado.banco.parcela)}</td>
                 </tr>
                 <tr>
-                  <td>Taxa Mensal (Praticada):</td>
+                  <td>Taxa Mensal (Efetiva Encontrada):</td>
                   <td><strong>{resultado.banco.taxa_mensal}% a.m.</strong></td>
-                </tr>
-                <tr>
-                  <td>Taxa Anual (Efetiva):</td>
-                  <td>{resultado.banco.taxa_anual}% a.a.</td>
                 </tr>
               </tbody>
             </table>
@@ -447,15 +416,11 @@ function App() {
             <div className="gauss-highlight" style={{marginBottom: '20px', borderColor: '#ccc', background: '#fff'}}>
               <div className="gauss-item">
                 <span style={{color: '#d32f2f', fontWeight: 'bold'}}>Taxa Cobrada (Banco)</span>
-                <strong style={{color: '#d32f2f', fontSize: '1.4rem'}}>
-                  {resultado.banco.taxa_mensal}% a.m.
-                </strong>
+                <strong style={{color: '#d32f2f', fontSize: '1.4rem'}}>{resultado.banco.taxa_mensal}% a.m.</strong>
               </div>
               <div className="gauss-item" style={{borderLeft: '1px solid #eee'}}>
                 <span style={{color: '#2e7d32', fontWeight: 'bold'}}>Taxa Média (Bacen)</span>
-                <strong style={{color: '#2e7d32', fontSize: '1.4rem'}}>
-                  {resultado.justo.taxa_mensal}% a.m.
-                </strong>
+                <strong style={{color: '#2e7d32', fontSize: '1.4rem'}}>{resultado.justo.taxa_mensal}% a.m.</strong>
               </div>
             </div>
 
@@ -476,9 +441,7 @@ function App() {
           <section className="doc-section bg-light">
             <h3>3.0 Conclusão Financeira</h3>
             <p>Com base na disparidade das taxas apresentadas acima, identificou-se onerosidade excessiva. O valor estimado a ser restituído (Repetição de Indébito) é:</p>
-            <div className="final-value">
-              R$ {formatarMoeda(resultado.resultado.valor_recuperar)}
-            </div>
+            <div className="final-value">R$ {formatarMoeda(resultado.resultado.valor_recuperar)}</div>
           </section>
 
           <section className="doc-section">
@@ -487,19 +450,13 @@ function App() {
             <div className="source-box">
               <strong>Série Utilizada:</strong> {resultado.justo.codigo_serie} (Banco Central)<br/>
               <strong>Fonte dos Dados:</strong> {resultado.justo.fonte}<br/>
-              
               {resultado.justo.observacao && (
                 <div style={{marginTop: '10px', padding: '10px', background: '#fffde7', borderLeft: '4px solid #fbc02d', color: '#555', fontSize: '0.85rem'}}>
                   <strong>Nota Técnica:</strong> {resultado.justo.observacao}
                 </div>
               )}
-              
               <div style={{marginTop: '10px'}}>
-                <a 
-                  href={`https://www3.bcb.gov.br/sgspub/consultarvalores/consultarValoresSeries.do?method=consultarSeries&series=${resultado.justo.codigo_serie || 25471}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                >
+                <a href={`https://www3.bcb.gov.br/sgspub/consultarvalores/consultarValoresSeries.do?method=consultarSeries&series=${resultado.justo.codigo_serie || 25471}`} target="_blank" rel="noreferrer">
                   Clique aqui para validar a taxa no site do Bacen
                 </a>
               </div>
@@ -520,15 +477,7 @@ function App() {
 
       {/* --- RODAPÉ --- */}
       <footer className="dev-footer no-print">
-        <p>
-          Desenvolvido por{' '}
-          <button 
-            className="dev-link-btn" 
-            onClick={() => setMostrarPortfolio(true)}
-          >
-            Denis da Rosa Ferreira
-          </button> 
-        </p>
+        <p>Desenvolvido por <button className="dev-link-btn" onClick={() => setMostrarPortfolio(true)}>Denis da Rosa Ferreira</button></p>
       </footer>
 
       {/* --- MODAL PORTFÓLIO --- */}
@@ -570,7 +519,7 @@ function App() {
         </div>
       )}
 
-      {/* --- NOVO: MODAL DE AJUDA / EXPLICAÇÃO --- */}
+      {/* --- MODAL DE AJUDA --- */}
       {mostrarAjuda && (
         <div className="portfolio-modal-backdrop" onClick={() => setMostrarAjuda(false)}>
           <div className="portfolio-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '600px'}}>
@@ -608,11 +557,7 @@ function App() {
                 <em>Este cálculo serve para embasar ações revisionais e negociações extrajudiciais.</em>
               </p>
 
-              <button 
-                onClick={() => setMostrarAjuda(false)}
-                className="btn-primary" 
-                style={{marginTop: '15px', width: '100%'}}
-              >
+              <button onClick={() => setMostrarAjuda(false)} className="btn-primary" style={{marginTop: '15px', width: '100%'}}>
                 Entendi, vamos calcular!
               </button>
             </div>

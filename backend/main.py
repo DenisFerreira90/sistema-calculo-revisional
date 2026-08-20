@@ -5,6 +5,7 @@ import numpy_financial as npf
 from bcb import sgs
 from datetime import datetime, timedelta
 from typing import Optional
+from functools import lru_cache # Importação do cache para velocidade extrema
 
 app = FastAPI()
 
@@ -19,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- MODELO DE DADOS ---
+# --- MODELO DE DADOS (ATUALIZADO COM IOF/SEGUROS) ---
 class DadosFinanciamento(BaseModel):
     valor_liberado: float
     valor_parcela: float
@@ -27,6 +28,9 @@ class DadosFinanciamento(BaseModel):
     data_contrato: str
     tipo_contrato: str
     numero_contrato: str
+    # Novos Campos de Tarifas Embutidas
+    iof: Optional[float] = 0.0
+    seguros_taxas: Optional[float] = 0.0
     # Campos Opcionais para Override Manual (Ajuste Fino)
     taxa_bacen_manual: Optional[float] = None
     taxa_contrato_manual: Optional[float] = None
@@ -118,7 +122,8 @@ def calcular_parcela_gauss(pv, n, i_decimal):
     except:
         return 0
 
-# --- CONEXÃO COM O BANCO CENTRAL ---
+# --- CONEXÃO COM O BANCO CENTRAL (COM CACHE PARA VELOCIDADE) ---
+@lru_cache(maxsize=128)
 def buscar_taxa_bacen(data_str: str, codigo_serie: int):
     try:
         data_inicial = datetime.strptime(data_str, "%Y-%m-%d")
@@ -137,6 +142,11 @@ def buscar_taxa_bacen(data_str: str, codigo_serie: int):
 @app.post("/calcular-revisional")
 def calcular(dados: DadosFinanciamento):
     
+    # BASE DE CÁLCULO CORRIGIDA: Valor Líquido + IOF + Seguros
+    valor_iof = dados.iof if dados.iof else 0.0
+    valor_seguros = dados.seguros_taxas if dados.seguros_taxas else 0.0
+    valor_total_financiado = dados.valor_liberado + valor_iof + valor_seguros
+
     # ---------------------------------------------------------
     # 1. DEFINIR A TAXA DO BANCO (CENÁRIO ATUAL)
     # ---------------------------------------------------------
@@ -147,9 +157,9 @@ def calcular(dados: DadosFinanciamento):
         taxa_decimal_banco = taxa_banco_perc / 100
         taxa_anual_banco = ((1 + taxa_decimal_banco)**12 - 1) * 100
     else:
-        # Se não, calcula via Engenharia Reversa (Price)
+        # Se não, calcula via Engenharia Reversa (Price) usando o VALOR TOTAL FINANCIADO
         try:
-            taxa_decimal_banco = npf.rate(dados.qtde_parcelas, -dados.valor_parcela, dados.valor_liberado, 0)
+            taxa_decimal_banco = npf.rate(dados.qtde_parcelas, -dados.valor_parcela, valor_total_financiado, 0)
             taxa_banco_perc = float(taxa_decimal_banco * 100)
             taxa_anual_banco = ((1 + taxa_decimal_banco)**12 - 1) * 100
         except:
@@ -205,7 +215,7 @@ def calcular(dados: DadosFinanciamento):
     # 3. RECÁLCULO (MÉTODO DE GAUSS)
     # ---------------------------------------------------------
     parcela_gauss = calcular_parcela_gauss(
-        dados.valor_liberado, 
+        valor_total_financiado, 
         dados.qtde_parcelas, 
         taxa_justa_perc / 100
     )
@@ -213,7 +223,7 @@ def calcular(dados: DadosFinanciamento):
     # Trava de Segurança: A parcela revisional não pode ser maior que a original.
     if parcela_gauss > dados.valor_parcela:
          # Opção conservadora: Usa a taxa justa mas no sistema Price
-         parcela_gauss = npf.pmt(taxa_justa_perc/100, dados.qtde_parcelas, -dados.valor_liberado)
+         parcela_gauss = npf.pmt(taxa_justa_perc/100, dados.qtde_parcelas, -valor_total_financiado)
          # Se ainda assim for maior, trava no valor original (não há o que revisar)
          if parcela_gauss > dados.valor_parcela:
              parcela_gauss = dados.valor_parcela
@@ -232,7 +242,11 @@ def calcular(dados: DadosFinanciamento):
             "data_calculo": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "metodo": "Sistema de Amortização GAUSS (Expurgo da Capitalização)",
             "tipo_contrato": dados.tipo_contrato,
-            "numero_contrato": dados.numero_contrato
+            "numero_contrato": dados.numero_contrato,
+            "valor_recebido": arredondar(dados.valor_liberado),
+            "valor_iof": arredondar(valor_iof),
+            "valor_seguros": arredondar(valor_seguros),
+            "valor_total_financiado": arredondar(valor_total_financiado)
         },
         "banco": {
             "taxa_mensal": arredondar(taxa_banco_perc),
@@ -256,4 +270,4 @@ def calcular(dados: DadosFinanciamento):
 
 @app.get("/")
 def home():
-    return {"status": "API Revisional Online", "versao": "7.0 Final Full Features"}
+    return {"status": "API Revisional Online", "versao": "8.5 - Base Corrigida + Cache Integrado"}
