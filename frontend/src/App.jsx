@@ -186,7 +186,9 @@ function App() {
         taxa_contrato_manual: usarTaxaContratoManual && formulario.taxa_manual_contrato ? parseFloat(formulario.taxa_manual_contrato.replace(',', '.')) : null
       }
       
-      const linkAPI = 'https://sistema-calculo-revisional.onrender.com/calcular-revisional'
+      // Puxa o link do arquivo .env. Se não encontrar, tenta usar no próprio PC.
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+      const linkAPI = `${baseUrl}/calcular-revisional`
 
       const response = await axios.post(linkAPI, payload)
       setResultado(response.data)
